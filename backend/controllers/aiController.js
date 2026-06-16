@@ -1,6 +1,7 @@
 ﻿import { supabase } from '../services/supabase.js';
 import * as ai from '../services/aiService.js';
 import { getAccountBalances } from '../services/pluggyService.js';
+import { checkAndCreateAlerts } from '../services/alertsService.js';
 
 export function getProviders(req, res) {
   res.json(ai.getProvidersStatus());
@@ -17,11 +18,15 @@ export async function chat(req, res) {
     const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     const end = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
 
-    const [transResult, invResult, bankAccounts] = await Promise.all([
+    checkAndCreateAlerts(req.user.id).catch(() => {});
+
+    const [transResult, invResult, bankAccounts, gastosResult, metasResult] = await Promise.all([
       supabase.from('transactions').select('*').eq('user_id', req.user.id)
         .gte('data', start).lte('data', end).order('data', { ascending: false }),
       supabase.from('investments').select('*').eq('user_id', req.user.id),
       getAccountBalances(req.user.id).catch(() => []),
+      supabase.from('gastos_fixos').select('descricao, valor, categoria, dia_vencimento, frequencia').eq('user_id', req.user.id).eq('ativo', true),
+      supabase.from('metas').select('titulo, tipo, valor_alvo, valor_atual, prazo, concluida').eq('user_id', req.user.id).eq('concluida', false),
     ]);
 
     const transactions = transResult.data || [];
@@ -40,6 +45,8 @@ export async function chat(req, res) {
       transacoesRecentes: transactions.slice(0, 10),
       investimentos: invResult.data || [],
       saldoBancario,
+      gastosFixos: gastosResult.data || [],
+      metas: metasResult.data || [],
     };
 
     const { text: response, provider, actions = [] } = await ai.chatWithAI(messages, userContext, req.user.id);

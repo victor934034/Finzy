@@ -13,6 +13,9 @@ import businessRouter from './routes/business.js';
 import aiRouter from './routes/ai.js';
 import dashboardRouter from './routes/dashboard.js';
 import integrationsRouter from './routes/integrations.js';
+import gastosFixosRouter from './routes/gastosFixos.js';
+import metasRouter from './routes/metas.js';
+import notificacoesRouter from './routes/notificacoes.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -43,6 +46,9 @@ app.use('/api/business', businessRouter);
 app.use('/api/ai', aiLimiter, aiRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/integrations', integrationsRouter);
+app.use('/api/gastos-fixos', gastosFixosRouter);
+app.use('/api/metas', metasRouter);
+app.use('/api/notificacoes', notificacoesRouter);
 
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 

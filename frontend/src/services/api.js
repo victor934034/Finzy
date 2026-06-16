@@ -59,6 +59,28 @@ export const dashboardApi = {
   monthlyChart: () => api.get('/dashboard/chart/monthly'),
 };
 
+export const gastosFixosApi = {
+  list: () => api.get('/gastos-fixos'),
+  create: (data) => api.post('/gastos-fixos', data),
+  update: (id, data) => api.put(`/gastos-fixos/${id}`, data),
+  remove: (id) => api.delete(`/gastos-fixos/${id}`),
+};
+
+export const metasApi = {
+  list: () => api.get('/metas'),
+  create: (data) => api.post('/metas', data),
+  update: (id, data) => api.put(`/metas/${id}`, data),
+  remove: (id) => api.delete(`/metas/${id}`),
+  addProgress: (id, data) => api.post(`/metas/${id}/progress`, data),
+};
+
+export const notificacoesApi = {
+  list: () => api.get('/notificacoes'),
+  markRead: (id) => api.patch(`/notificacoes/${id}/read`),
+  markAllRead: () => api.patch('/notificacoes/read-all'),
+  remove: (id) => api.delete(`/notificacoes/${id}`),
+};
+
 export const integrationsApi = {
   // Gmail
   gmailAuthUrl: () => api.get('/integrations/gmail/auth-url'),

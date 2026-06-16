@@ -1,10 +1,12 @@
 ﻿import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ArrowLeftRight, TrendingUp, Briefcase, MessageCircle, Plug, LogOut, Sparkles } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, TrendingUp, Briefcase, MessageCircle, Plug, LogOut, Sparkles, CalendarClock, Target } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore.js';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/transacoes', icon: ArrowLeftRight, label: 'Transações' },
+  { to: '/gastos-fixos', icon: CalendarClock, label: 'Gastos Fixos' },
+  { to: '/metas', icon: Target, label: 'Metas' },
   { to: '/investimentos', icon: TrendingUp, label: 'Investimentos' },
   { to: '/negocio', icon: Briefcase, label: 'Negócio' },
   { to: '/chat', icon: MessageCircle, label: 'Chat IA' },

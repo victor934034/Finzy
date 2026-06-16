@@ -54,6 +54,49 @@ export const TOOL_DEFINITIONS = [
     },
     required: ['id'],
   },
+  {
+    name: 'listar_gastos_fixos',
+    description: 'Lista os gastos fixos (despesas recorrentes) do usuário, como aluguel, assinaturas, mensalidades.',
+    parameters: {},
+    required: [],
+  },
+  {
+    name: 'listar_metas',
+    description: 'Lista as metas financeiras do usuário com progresso atual.',
+    parameters: {},
+    required: [],
+  },
+  {
+    name: 'criar_meta',
+    description: 'Cria uma nova meta financeira para o usuário.',
+    parameters: {
+      titulo: { type: 'string', description: 'Nome da meta (ex: "Viagem para Europa")' },
+      tipo: { type: 'string', enum: ['poupança', 'quitar_dívida', 'compra', 'investimento', 'viagem', 'emergência', 'outros'], description: 'Tipo da meta' },
+      valor_alvo: { type: 'number', description: 'Valor total a ser atingido em reais' },
+      prazo: { type: 'string', description: 'Data limite no formato YYYY-MM-DD (opcional)' },
+      descricao: { type: 'string', description: 'Descrição adicional (opcional)' },
+    },
+    required: ['titulo', 'valor_alvo'],
+  },
+  {
+    name: 'atualizar_progresso_meta',
+    description: 'Adiciona um valor ao progresso de uma meta financeira existente.',
+    parameters: {
+      id: { type: 'string', description: 'ID da meta (use listar_metas para encontrar)' },
+      valor: { type: 'number', description: 'Valor a adicionar ao progresso em reais' },
+    },
+    required: ['id', 'valor'],
+  },
+  {
+    name: 'criar_notificacao',
+    description: 'Cria uma notificação personalizada para lembrar o usuário de algo importante.',
+    parameters: {
+      titulo: { type: 'string', description: 'Título curto da notificação' },
+      mensagem: { type: 'string', description: 'Mensagem detalhada' },
+      tipo: { type: 'string', enum: ['alerta', 'meta', 'gasto_fixo', 'info'], description: 'Tipo da notificação' },
+    },
+    required: ['titulo', 'mensagem'],
+  },
 ];
 
 export async function executeTool(name, args, userId) {
@@ -107,6 +150,74 @@ export async function executeTool(name, args, userId) {
       const { error } = await supabase.from('transactions').delete().eq('id', args.id).eq('user_id', userId);
       if (error) return { sucesso: false, erro: error.message };
       return { sucesso: true, mensagem: 'Transação excluída.' };
+    }
+
+    case 'listar_gastos_fixos': {
+      const { data, error } = await supabase
+        .from('gastos_fixos')
+        .select('id, descricao, valor, categoria, dia_vencimento, frequencia, ativo')
+        .eq('user_id', userId)
+        .order('dia_vencimento', { ascending: true });
+      if (error) return { sucesso: false, erro: error.message };
+      const ativos = (data || []).filter(g => g.ativo);
+      const totalMensal = ativos.reduce((s, g) => s + Number(g.valor), 0);
+      const fmt = (v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+      return { sucesso: true, total: data.length, ativos: ativos.length, totalMensalAtivos: totalMensal, totalMensalAtivosFormatado: fmt(totalMensal), gastos: data };
+    }
+
+    case 'listar_metas': {
+      const { data, error } = await supabase
+        .from('metas')
+        .select('id, titulo, tipo, valor_alvo, valor_atual, prazo, concluida')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      if (error) return { sucesso: false, erro: error.message };
+      const fmt = (v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+      const metas = (data || []).map(m => ({
+        ...m,
+        progresso_pct: Math.round((Number(m.valor_atual) / Number(m.valor_alvo)) * 100),
+        falta: fmt(Math.max(0, Number(m.valor_alvo) - Number(m.valor_atual))),
+      }));
+      return { sucesso: true, total: metas.length, metas };
+    }
+
+    case 'criar_meta': {
+      const row = {
+        user_id: userId,
+        titulo: String(args.titulo || '').slice(0, 100),
+        tipo: args.tipo || 'outros',
+        valor_alvo: Math.abs(Number(args.valor_alvo) || 0),
+        valor_atual: 0,
+        descricao: args.descricao || null,
+        prazo: args.prazo || null,
+      };
+      if (!row.valor_alvo) return { sucesso: false, erro: 'Valor alvo inválido.' };
+      const { data, error } = await supabase.from('metas').insert(row).select('id').single();
+      if (error) return { sucesso: false, erro: error.message };
+      return { sucesso: true, id: data.id, mensagem: `Meta criada: "${row.titulo}" — alvo: R$ ${row.valor_alvo.toFixed(2)}` };
+    }
+
+    case 'atualizar_progresso_meta': {
+      const { data: meta, error: fetchErr } = await supabase
+        .from('metas').select('valor_atual, valor_alvo').eq('id', args.id).eq('user_id', userId).single();
+      if (fetchErr || !meta) return { sucesso: false, erro: 'Meta não encontrada.' };
+      const novoValor = Math.min(Number(meta.valor_atual) + Number(args.valor), Number(meta.valor_alvo));
+      const concluida = novoValor >= Number(meta.valor_alvo);
+      const { error } = await supabase.from('metas').update({ valor_atual: novoValor, concluida }).eq('id', args.id).eq('user_id', userId);
+      if (error) return { sucesso: false, erro: error.message };
+      const fmt = (v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+      return { sucesso: true, mensagem: concluida ? `Meta concluída! Valor: ${fmt(novoValor)}` : `Progresso atualizado: ${fmt(novoValor)} de ${fmt(meta.valor_alvo)} (${Math.round((novoValor / Number(meta.valor_alvo)) * 100)}%)` };
+    }
+
+    case 'criar_notificacao': {
+      const { error } = await supabase.from('notificacoes').insert({
+        user_id: userId,
+        titulo: String(args.titulo || '').slice(0, 100),
+        mensagem: String(args.mensagem || ''),
+        tipo: args.tipo || 'info',
+      });
+      if (error) return { sucesso: false, erro: error.message };
+      return { sucesso: true, mensagem: 'Notificação criada.' };
     }
 
     case 'consultar_saldo_bancario': {

@@ -8,6 +8,8 @@ import InvestmentsPage from './pages/InvestmentsPage.jsx';
 import BusinessPage from './pages/BusinessPage.jsx';
 import ChatPage from './pages/ChatPage.jsx';
 import IntegrationsPage from './pages/IntegrationsPage.jsx';
+import GastosFixosPage from './pages/GastosFixosPage.jsx';
+import MetasPage from './pages/MetasPage.jsx';
 import Layout from './components/layout/Layout.jsx';
 
 function PrivateRoute({ children }) {
@@ -31,6 +33,8 @@ export default function App() {
           <Route path="negocio" element={<BusinessPage />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="integracoes" element={<IntegrationsPage />} />
+          <Route path="gastos-fixos" element={<GastosFixosPage />} />
+          <Route path="metas" element={<MetasPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

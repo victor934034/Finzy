@@ -1,12 +1,12 @@
 ﻿import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ArrowLeftRight, TrendingUp, MessageCircle, Plug } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, CalendarClock, Target, MessageCircle } from 'lucide-react';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Início' },
   { to: '/transacoes', icon: ArrowLeftRight, label: 'Gastos' },
-  { to: '/investimentos', icon: TrendingUp, label: 'Invest.' },
+  { to: '/gastos-fixos', icon: CalendarClock, label: 'Fixos' },
+  { to: '/metas', icon: Target, label: 'Metas' },
   { to: '/chat', icon: MessageCircle, label: 'Chat IA' },
-  { to: '/integracoes', icon: Plug, label: 'Conectar' },
 ];
 
 export default function MobileNav() {

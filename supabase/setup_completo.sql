@@ -80,6 +80,47 @@ CREATE TABLE IF NOT EXISTS public.integration_tokens (
   UNIQUE(user_id, provider)
 );
 
+-- Gastos fixos (despesas recorrentes)
+CREATE TABLE IF NOT EXISTS public.gastos_fixos (
+  id               UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id          UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  descricao        TEXT          NOT NULL,
+  valor            DECIMAL(12,2) NOT NULL CHECK (valor >= 0),
+  categoria        VARCHAR(50)   NOT NULL DEFAULT 'Outros',
+  dia_vencimento   INT           NOT NULL CHECK (dia_vencimento BETWEEN 1 AND 31),
+  frequencia       VARCHAR(20)   NOT NULL DEFAULT 'mensal'
+                     CHECK (frequencia IN ('semanal','quinzenal','mensal','trimestral','semestral','anual')),
+  ativo            BOOLEAN       NOT NULL DEFAULT true,
+  created_at       TIMESTAMPTZ   DEFAULT NOW()
+);
+
+-- Metas financeiras
+CREATE TABLE IF NOT EXISTS public.metas (
+  id           UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id      UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  titulo       VARCHAR(100)  NOT NULL,
+  descricao    TEXT,
+  tipo         VARCHAR(50)   NOT NULL DEFAULT 'outros'
+                 CHECK (tipo IN ('poupança','quitar_dívida','compra','investimento','viagem','emergência','outros')),
+  valor_alvo   DECIMAL(12,2) NOT NULL CHECK (valor_alvo > 0),
+  valor_atual  DECIMAL(12,2) NOT NULL DEFAULT 0 CHECK (valor_atual >= 0),
+  prazo        DATE,
+  concluida    BOOLEAN       NOT NULL DEFAULT false,
+  created_at   TIMESTAMPTZ   DEFAULT NOW()
+);
+
+-- Notificações do sistema / IA
+CREATE TABLE IF NOT EXISTS public.notificacoes (
+  id         UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id    UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  titulo     VARCHAR(100) NOT NULL,
+  mensagem   TEXT         NOT NULL,
+  tipo       VARCHAR(30)  NOT NULL DEFAULT 'info'
+               CHECK (tipo IN ('alerta','meta','gasto_fixo','info')),
+  lida       BOOLEAN      NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ  DEFAULT NOW()
+);
+
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS) — cada usuário vê só os seus dados
 -- ============================================================
@@ -90,6 +131,9 @@ ALTER TABLE public.business_entries   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ai_insights        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_messages      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.integration_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.gastos_fixos       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.metas              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notificacoes       ENABLE ROW LEVEL SECURITY;
 
 -- Políticas (DROP IF EXISTS antes de criar, para rodar idempotente)
 DO $$ BEGIN
@@ -99,6 +143,9 @@ DO $$ BEGIN
   DROP POLICY IF EXISTS "rls_ai_insights"        ON public.ai_insights;
   DROP POLICY IF EXISTS "rls_chat_messages"      ON public.chat_messages;
   DROP POLICY IF EXISTS "rls_integration_tokens" ON public.integration_tokens;
+  DROP POLICY IF EXISTS "rls_gastos_fixos"       ON public.gastos_fixos;
+  DROP POLICY IF EXISTS "rls_metas"              ON public.metas;
+  DROP POLICY IF EXISTS "rls_notificacoes"       ON public.notificacoes;
 END $$;
 
 CREATE POLICY "rls_transactions"
@@ -119,18 +166,30 @@ CREATE POLICY "rls_chat_messages"
 CREATE POLICY "rls_integration_tokens"
   ON public.integration_tokens FOR ALL USING (auth.uid() = user_id);
 
+CREATE POLICY "rls_gastos_fixos"
+  ON public.gastos_fixos FOR ALL USING (auth.uid() = user_id);
+
+CREATE POLICY "rls_metas"
+  ON public.metas FOR ALL USING (auth.uid() = user_id);
+
+CREATE POLICY "rls_notificacoes"
+  ON public.notificacoes FOR ALL USING (auth.uid() = user_id);
+
 -- ============================================================
 -- ÍNDICES — performance em buscas frequentes
 -- ============================================================
 
-CREATE INDEX IF NOT EXISTS idx_tx_user_data    ON public.transactions(user_id, data DESC);
-CREATE INDEX IF NOT EXISTS idx_tx_tipo         ON public.transactions(tipo);
-CREATE INDEX IF NOT EXISTS idx_tx_categoria    ON public.transactions(categoria);
-CREATE INDEX IF NOT EXISTS idx_inv_user        ON public.investments(user_id);
-CREATE INDEX IF NOT EXISTS idx_biz_user_data   ON public.business_entries(user_id, data DESC);
-CREATE INDEX IF NOT EXISTS idx_chat_user_date  ON public.chat_messages(user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_insights_user   ON public.ai_insights(user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_tokens_user_prov ON public.integration_tokens(user_id, provider);
+CREATE INDEX IF NOT EXISTS idx_tx_user_data      ON public.transactions(user_id, data DESC);
+CREATE INDEX IF NOT EXISTS idx_tx_tipo           ON public.transactions(tipo);
+CREATE INDEX IF NOT EXISTS idx_tx_categoria      ON public.transactions(categoria);
+CREATE INDEX IF NOT EXISTS idx_inv_user          ON public.investments(user_id);
+CREATE INDEX IF NOT EXISTS idx_biz_user_data     ON public.business_entries(user_id, data DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_user_date    ON public.chat_messages(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_insights_user     ON public.ai_insights(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_tokens_user_prov  ON public.integration_tokens(user_id, provider);
+CREATE INDEX IF NOT EXISTS idx_gastos_user       ON public.gastos_fixos(user_id, ativo);
+CREATE INDEX IF NOT EXISTS idx_metas_user        ON public.metas(user_id, concluida);
+CREATE INDEX IF NOT EXISTS idx_notif_user_lida   ON public.notificacoes(user_id, lida, created_at DESC);
 
 -- ============================================================
 -- DADOS DE TESTE (opcional — remova os comentários para inserir)
