@@ -26,12 +26,12 @@ export const useAuthStore = create((set) => ({
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: { nome },
-        emailRedirectTo: window.location.origin,
-      },
+      options: { data: { nome } },
     });
     if (error) throw error;
+    if (data.session) {
+      set({ user: data.user, session: data.session });
+    }
     return data;
   },
 

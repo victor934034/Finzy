@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Mail, Lock, User, Eye, EyeOff, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { Sparkles, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '../store/authStore.js';
 
 export default function AuthPage() {
@@ -9,7 +9,6 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
   const { signIn, signUp, user } = useAuthStore();
   const navigate = useNavigate();
 
@@ -26,13 +25,10 @@ export default function AuthPage() {
         await signIn(form.email, form.password);
       } else {
         await signUp(form.email, form.password, form.nome);
-        setEmailSent(true);
       }
     } catch (err) {
       const msg = err.message || '';
-      if (msg.includes('Email not confirmed')) {
-        setError('E-mail ainda não confirmado. Verifique sua caixa de entrada e clique no link de confirmação.');
-      } else if (msg.includes('Invalid login credentials')) {
+      if (msg.includes('Invalid login credentials')) {
         setError('E-mail ou senha incorretos. Verifique e tente novamente.');
       } else if (msg.includes('User already registered')) {
         setError('Este e-mail já está cadastrado. Faça login ou redefina sua senha.');
@@ -46,33 +42,6 @@ export default function AuthPage() {
   };
 
   const set = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
-
-  if (emailSent) {
-    return (
-      <div className="min-h-screen bg-dark-400 flex items-center justify-center p-4">
-        <div className="w-full max-w-md text-center">
-          <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-6 glow">
-            <CheckCircle2 size={40} className="text-primary" />
-          </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Confirme seu e-mail</h2>
-          <p className="text-gray-400 mb-2">
-            Enviamos um link de confirmação para:
-          </p>
-          <p className="text-primary font-semibold mb-6">{form.email}</p>
-          <p className="text-gray-500 text-sm mb-8">
-            Clique no link do e-mail para ativar sua conta. Verifique também a pasta de spam.
-          </p>
-          <button
-            onClick={() => { setEmailSent(false); setMode('login'); }}
-            className="btn-primary flex items-center gap-2 mx-auto"
-          >
-            <ArrowLeft size={16} />
-            Voltar para o login
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-dark-400 flex items-center justify-center p-4">
