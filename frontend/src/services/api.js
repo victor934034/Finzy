@@ -1,7 +1,9 @@
 ﻿import axios from 'axios';
 import { supabase } from './supabase.js';
 
-const API_URL = window.__ENV__?.API_URL || import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// Docker: API_URL vazio = mesma origem (Express serve front + API)
+// Dev local: aponta para localhost:3001
+const API_URL = window.__ENV__?.API_URL || import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3001' : '');
 
 const api = axios.create({ baseURL: `${API_URL}/api` });
 
