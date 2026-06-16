@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head><title>Gerar Ícones FinanceIA</title></head>
+<body>
+<p>Abra este arquivo no navegador e clique nos botões para baixar os ícones.</p>
+
+<script>
+function generateIcon(size) {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  // Fundo
+  const grad = ctx.createLinearGradient(0, 0, size, size);
+  grad.addColorStop(0, '#0F172A');
+  grad.addColorStop(1, '#1E293B');
+  ctx.fillStyle = grad;
+  ctx.roundRect(0, 0, size, size, size * 0.2);
+  ctx.fill();
+
+  // Ícone Sparkles
+  ctx.fillStyle = '#00C853';
+  const s = size * 0.5;
+  const cx = size / 2;
+  const cy = size / 2;
+
+  // Estrela principal
+  ctx.beginPath();
+  const pts = 4;
+  const outerR = s * 0.4;
+  const innerR = s * 0.15;
+  for (let i = 0; i < pts * 2; i++) {
+    const angle = (i * Math.PI) / pts - Math.PI / 2;
+    const r = i % 2 === 0 ? outerR : innerR;
+    const x = cx + Math.cos(angle) * r;
+    const y = cy + Math.sin(angle) * r;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  // Estrelinhas menores
+  ctx.fillStyle = 'rgba(0, 200, 83, 0.6)';
+  const smallStar = (x, y, r) => {
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const angle = (i * Math.PI) / 4 - Math.PI / 2;
+      const radius = i % 2 === 0 ? r : r * 0.4;
+      const px = x + Math.cos(angle) * radius;
+      const py = y + Math.sin(angle) * radius;
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+  };
+  smallStar(cx - s * 0.3, cy - s * 0.3, s * 0.12);
+  smallStar(cx + s * 0.35, cy - s * 0.25, s * 0.08);
+  smallStar(cx + s * 0.25, cy + s * 0.35, s * 0.1);
+
+  return canvas.toDataURL('image/png');
+}
+
+function download(size) {
+  const a = document.createElement('a');
+  a.download = `icon-${size}.png`;
+  a.href = generateIcon(size);
+  a.click();
+}
+
+document.write('<button onclick="download(192)" style="padding:10px;margin:5px">Baixar icon-192.png</button>');
+document.write('<button onclick="download(512)" style="padding:10px;margin:5px">Baixar icon-512.png</button>');
+</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+# Dependências
+node_modules/
+**/node_modules/
+
+# Arquivos de ambiente (NUNCA commitar .env com segredos)
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+
+# Build outputs
+dist/
+build/
+.next/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# Vite
+.vite/
+
+# PWA gerado
+frontend/public/sw.js
+frontend/public/workbox-*.js

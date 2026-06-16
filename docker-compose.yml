@@ -1,0 +1,77 @@
+version: '3.9'
+
+# ============================================================
+# FinanceIA — Docker Compose (dev local + EasePanel)
+#
+# Uso local:   docker-compose up --build
+# EasePanel:   importe este arquivo e preencha as variáveis
+#              no painel de cada serviço
+# ============================================================
+
+services:
+
+  # ── Backend (Node.js + Express) ─────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: financeia-backend
+    container_name: financeia-backend
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+
+      # URL do frontend para CORS — ajuste para seu domínio no EasePanel
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+
+      # ── IA (ao menos 1 obrigatória) ──────────────────────
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+
+      # ── Supabase (obrigatório) ────────────────────────────
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
+
+      # ── Pluggy Open Finance (opcional) ────────────────────
+      PLUGGY_CLIENT_ID: ${PLUGGY_CLIENT_ID:-}
+      PLUGGY_CLIENT_SECRET: ${PLUGGY_CLIENT_SECRET:-}
+
+      # ── Gmail OAuth (opcional) ────────────────────────────
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # ── Frontend (React + Nginx) ─────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: financeia-frontend
+    container_name: financeia-frontend
+    ports:
+      - "80:80"
+    environment:
+      # Supabase anon key (pública) injetada em runtime pelo entrypoint
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      # Vazio = nginx faz proxy /api → backend; preencha se expor backend em domínio separado
+      API_URL: ${API_URL:-}
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  default:
+    name: financeia-network
