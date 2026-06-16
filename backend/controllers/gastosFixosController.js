@@ -1,4 +1,8 @@
 import { supabase } from '../services/supabase.js';
+import { validMoney, validStr, validEnum, validInt } from '../utils/validate.js';
+
+const CATEGORIAS = ['Moradia', 'Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Assinaturas', 'Negócio', 'Outros'];
+const FREQUENCIAS = ['semanal', 'quinzenal', 'mensal', 'trimestral', 'semestral', 'anual'];
 
 export async function list(req, res) {
   try {
@@ -7,7 +11,6 @@ export async function list(req, res) {
       .select('*')
       .eq('user_id', req.user.id)
       .order('dia_vencimento', { ascending: true });
-
     if (error) throw error;
     res.json({ data });
   } catch (err) {
@@ -19,24 +22,32 @@ export async function create(req, res) {
   try {
     const { descricao, valor, categoria, dia_vencimento, frequencia, ativo } = req.body;
 
-    if (!descricao || !valor || !dia_vencimento) {
-      return res.status(400).json({ error: 'Campos obrigatórios: descricao, valor, dia_vencimento.' });
-    }
+    const erros = [];
 
-    const diaNum = Number(dia_vencimento);
-    if (diaNum < 1 || diaNum > 31) {
-      return res.status(400).json({ error: 'dia_vencimento deve estar entre 1 e 31.' });
-    }
+    const descricaoVal = validStr(descricao, 255);
+    if (!descricaoVal) erros.push('descricao é obrigatória (máx 255 caracteres)');
+
+    if (!validMoney(valor) || Number(valor) <= 0) erros.push('valor deve ser um número positivo');
+
+    const diaVal = validInt(dia_vencimento, 1, 31);
+    if (!diaVal) erros.push('dia_vencimento deve ser um número entre 1 e 31');
+
+    const freqVal = validEnum(frequencia || 'mensal', FREQUENCIAS);
+    if (!freqVal) erros.push(`frequencia inválida. Opções: ${FREQUENCIAS.join(', ')}`);
+
+    if (erros.length) return res.status(400).json({ error: erros.join('. ') });
+
+    const categoriaVal = CATEGORIAS.includes(categoria) ? categoria : 'Outros';
 
     const { data, error } = await supabase
       .from('gastos_fixos')
       .insert({
         user_id: req.user.id,
-        descricao: String(descricao).slice(0, 255),
-        valor: Math.abs(Number(valor)),
-        categoria: categoria || 'Outros',
-        dia_vencimento: diaNum,
-        frequencia: frequencia || 'mensal',
+        descricao: descricaoVal,
+        valor: Number(valor),
+        categoria: categoriaVal,
+        dia_vencimento: diaVal,
+        frequencia: freqVal,
         ativo: ativo !== undefined ? Boolean(ativo) : true,
       })
       .select()
@@ -55,20 +66,34 @@ export async function update(req, res) {
     const { descricao, valor, categoria, dia_vencimento, frequencia, ativo } = req.body;
 
     const updates = {};
-    if (descricao !== undefined) updates.descricao = String(descricao).slice(0, 255);
-    if (valor !== undefined) updates.valor = Math.abs(Number(valor));
-    if (categoria !== undefined) updates.categoria = categoria;
-    if (dia_vencimento !== undefined) {
-      const diaNum = Number(dia_vencimento);
-      if (diaNum < 1 || diaNum > 31) return res.status(400).json({ error: 'dia_vencimento deve estar entre 1 e 31.' });
-      updates.dia_vencimento = diaNum;
+    const erros = [];
+
+    if (descricao !== undefined) {
+      const v = validStr(descricao, 255);
+      if (!v) erros.push('descricao inválida');
+      else updates.descricao = v;
     }
-    if (frequencia !== undefined) updates.frequencia = frequencia;
+    if (valor !== undefined) {
+      if (!validMoney(valor) || Number(valor) <= 0) erros.push('valor inválido');
+      else updates.valor = Number(valor);
+    }
+    if (categoria !== undefined) {
+      updates.categoria = CATEGORIAS.includes(categoria) ? categoria : 'Outros';
+    }
+    if (dia_vencimento !== undefined) {
+      const v = validInt(dia_vencimento, 1, 31);
+      if (!v) erros.push('dia_vencimento deve ser entre 1 e 31');
+      else updates.dia_vencimento = v;
+    }
+    if (frequencia !== undefined) {
+      const v = validEnum(frequencia, FREQUENCIAS);
+      if (!v) erros.push(`frequencia inválida`);
+      else updates.frequencia = v;
+    }
     if (ativo !== undefined) updates.ativo = Boolean(ativo);
 
-    if (!Object.keys(updates).length) {
-      return res.status(400).json({ error: 'Nenhum campo para atualizar.' });
-    }
+    if (erros.length) return res.status(400).json({ error: erros.join('. ') });
+    if (!Object.keys(updates).length) return res.status(400).json({ error: 'Nenhum campo para atualizar.' });
 
     const { data, error } = await supabase
       .from('gastos_fixos')
@@ -90,7 +115,6 @@ export async function update(req, res) {
 export async function remove(req, res) {
   try {
     const { id } = req.params;
-
     const { error } = await supabase
       .from('gastos_fixos')
       .delete()

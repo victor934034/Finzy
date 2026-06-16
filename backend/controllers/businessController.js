@@ -1,4 +1,8 @@
 import { supabase } from '../services/supabase.js';
+import { validDate, validMoney, validStr, validEnum, validInt } from '../utils/validate.js';
+
+const TIPOS = ['receita', 'despesa'];
+const CATEGORIAS = ['Vendas', 'Serviços', 'Salários', 'Aluguel', 'Marketing', 'Impostos', 'Fornecedores', 'Outros'];
 
 export async function getBusinessEntries(req, res) {
   try {
@@ -10,16 +14,19 @@ export async function getBusinessEntries(req, res) {
       .order('data', { ascending: false });
 
     if (mes && ano) {
-      const start = `${ano}-${String(mes).padStart(2, '0')}-01`;
-      const end = new Date(Number(ano), Number(mes), 0).toISOString().split('T')[0];
-      query = query.gte('data', start).lte('data', end);
+      const mesNum = validInt(mes, 1, 12);
+      const anoNum = validInt(ano, 1900, 2100);
+      if (mesNum && anoNum) {
+        const start = `${anoNum}-${String(mesNum).padStart(2, '0')}-01`;
+        const end = new Date(anoNum, mesNum, 0).toISOString().split('T')[0];
+        query = query.gte('data', start).lte('data', end);
+      }
     }
 
-    if (tipo) query = query.eq('tipo', tipo);
+    if (tipo && TIPOS.includes(tipo)) query = query.eq('tipo', tipo);
 
     const { data, error } = await query;
     if (error) throw error;
-
     res.json({ data });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -30,18 +37,30 @@ export async function createBusinessEntry(req, res) {
   try {
     const { tipo, valor, categoria, descricao, data } = req.body;
 
-    if (!tipo || !valor || !descricao || !data) {
-      return res.status(400).json({ error: 'Campos obrigatórios: tipo, valor, descrição, data.' });
-    }
+    const erros = [];
+
+    const tipoVal = validEnum(tipo, TIPOS);
+    if (!tipoVal) erros.push('tipo deve ser "receita" ou "despesa"');
+
+    if (!validMoney(valor) || Number(valor) <= 0) erros.push('valor deve ser um número positivo');
+
+    const descricaoVal = validStr(descricao, 255);
+    if (!descricaoVal) erros.push('descricao é obrigatória (máx 255 caracteres)');
+
+    if (!data || !validDate(data)) erros.push('data inválida — use YYYY-MM-DD com ano de 4 dígitos, mês e dia com 2 dígitos');
+
+    if (erros.length) return res.status(400).json({ error: erros.join('. ') });
+
+    const categoriaFinal = categoria && CATEGORIAS.includes(categoria) ? categoria : 'Outros';
 
     const { data: entry, error } = await supabase
       .from('business_entries')
       .insert({
         user_id: req.user.id,
-        tipo,
+        tipo: tipoVal,
         valor: Number(valor),
-        categoria: categoria || 'Outros',
-        descricao,
+        categoria: categoriaFinal,
+        descricao: descricaoVal,
         data,
       })
       .select()
@@ -57,9 +76,37 @@ export async function createBusinessEntry(req, res) {
 export async function updateBusinessEntry(req, res) {
   try {
     const { id } = req.params;
-    const updates = req.body;
+    const { tipo, valor, categoria, descricao, data } = req.body;
 
-    const { data, error } = await supabase
+    const updates = {};
+    const erros = [];
+
+    if (tipo !== undefined) {
+      const v = validEnum(tipo, TIPOS);
+      if (!v) erros.push('tipo deve ser "receita" ou "despesa"');
+      else updates.tipo = v;
+    }
+    if (valor !== undefined) {
+      if (!validMoney(valor) || Number(valor) <= 0) erros.push('valor inválido');
+      else updates.valor = Number(valor);
+    }
+    if (categoria !== undefined) {
+      updates.categoria = CATEGORIAS.includes(categoria) ? categoria : 'Outros';
+    }
+    if (descricao !== undefined) {
+      const v = validStr(descricao, 255);
+      if (!v) erros.push('descricao inválida');
+      else updates.descricao = v;
+    }
+    if (data !== undefined) {
+      if (!validDate(data)) erros.push('data inválida — use YYYY-MM-DD com ano de 4 dígitos');
+      else updates.data = data;
+    }
+
+    if (erros.length) return res.status(400).json({ error: erros.join('. ') });
+    if (!Object.keys(updates).length) return res.status(400).json({ error: 'Nenhum campo para atualizar.' });
+
+    const { data: result, error } = await supabase
       .from('business_entries')
       .update(updates)
       .eq('id', id)
@@ -68,9 +115,9 @@ export async function updateBusinessEntry(req, res) {
       .single();
 
     if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Lançamento não encontrado.' });
+    if (!result) return res.status(404).json({ error: 'Lançamento não encontrado.' });
 
-    res.json({ data });
+    res.json({ data: result });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -79,7 +126,6 @@ export async function updateBusinessEntry(req, res) {
 export async function deleteBusinessEntry(req, res) {
   try {
     const { id } = req.params;
-
     const { error } = await supabase
       .from('business_entries')
       .delete()
@@ -96,11 +142,11 @@ export async function deleteBusinessEntry(req, res) {
 export async function getMonthlyReport(req, res) {
   try {
     const now = new Date();
-    const mes = Number(req.query.mes) || (now.getMonth() + 1);
-    const ano = Number(req.query.ano) || now.getFullYear();
+    const mesNum = validInt(req.query.mes, 1, 12) || (now.getMonth() + 1);
+    const anoNum = validInt(req.query.ano, 1900, 2100) || now.getFullYear();
 
-    const start = `${ano}-${String(mes).padStart(2, '0')}-01`;
-    const end = new Date(ano, mes, 0).toISOString().split('T')[0];
+    const start = `${anoNum}-${String(mesNum).padStart(2, '0')}-01`;
+    const end = new Date(anoNum, mesNum, 0).toISOString().split('T')[0];
 
     const { data, error } = await supabase
       .from('business_entries')
@@ -123,7 +169,7 @@ export async function getMonthlyReport(req, res) {
       .map(([categoria, total]) => ({ categoria, total }))
       .sort((a, b) => b.total - a.total);
 
-    res.json({ receitas, despesas, lucro, categorias, entries: data, mes, ano });
+    res.json({ receitas, despesas, lucro, categorias, entries: data, mes: mesNum, ano: anoNum });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
