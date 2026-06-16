@@ -16,14 +16,14 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "API_BASE_URL", "\"http://187.77.34.80/api/\"")
+        buildConfigField("String", "API_BASE_URL", "\"https://gestao-de-item-finzy.mgf7wb.easypanel.host/api/\"")
         buildConfigField("String", "SUPABASE_URL", "\"https://mhxdrrjdnpxxfgohgqat.supabase.co\"")
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            buildConfigField("String", "API_BASE_URL", "\"http://187.77.34.80/api/\"")
+            buildConfigField("String", "API_BASE_URL", "\"https://gestao-de-item-finzy.mgf7wb.easypanel.host/api/\"")
             buildConfigField("String", "SUPABASE_URL", "\"https://mhxdrrjdnpxxfgohgqat.supabase.co\"")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
