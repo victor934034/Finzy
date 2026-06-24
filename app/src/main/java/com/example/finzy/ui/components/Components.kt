@@ -227,9 +227,9 @@ fun DropdownField(label: String, selected: String, options: List<String>, onSele
 fun FinzyBottomNav(currentRoute: String, onNavigate: (String) -> Unit) {
     NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
         listOf(
-            Triple("dashboard", "Home", Icons.Filled.Home),
+            Triple("dashboard", "Início", Icons.Filled.Home),
             Triple("transactions", "Gastos", Icons.Filled.List),
-            Triple("gastos-fixos", "Fixos", Icons.Filled.DateRange),
+            Triple("analytics", "Analytics", Icons.Filled.BarChart),
             Triple("metas", "Metas", Icons.Filled.Flag),
             Triple("chat", "Chat IA", Icons.Filled.Chat)
         ).forEach { (route, label, icon) ->

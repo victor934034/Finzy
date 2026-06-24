@@ -4,15 +4,19 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -38,11 +42,13 @@ fun metaColor(tipo: String): Color = when (tipo) {
     else -> Color(0xFF90A4AE)
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MetasScreen(vm: MetasViewModel = viewModel(factory = MetasViewModel.Factory)) {
     val state by vm.state.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
     var progressTarget by remember { mutableStateOf<Meta?>(null) }
+    val pullRefreshState = rememberPullToRefreshState()
 
     val ativas = state.items.filter { !it.concluida }
     val concluidas = state.items.filter { it.concluida }
@@ -55,33 +61,47 @@ fun MetasScreen(vm: MetasViewModel = viewModel(factory = MetasViewModel.Factory)
             }
         }
     ) { padding ->
-        if (state.isLoading) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = FinzyGreen)
-            }
-            return@Scaffold
-        }
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        PullToRefreshBox(
+            isRefreshing = state.isLoading,
+            onRefresh = { vm.load() },
+            state = pullRefreshState,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
         ) {
-            if (ativas.isNotEmpty()) {
-                item { Text("Em andamento", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface) }
-                items(ativas) { m ->
-                    MetaCard(m, onAddProgress = { progressTarget = m }, onDelete = { vm.delete(m.id) })
+            if (state.items.isEmpty() && !state.isLoading) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            "Nenhuma meta cadastrada.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 14.sp
+                        )
+                        Text(
+                            "Crie sua primeira meta!",
+                            color = FinzyGreen,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
-            }
-            if (concluidas.isNotEmpty()) {
-                item { Text("Concluídas", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(top = 8.dp)) }
-                items(concluidas) { m ->
-                    MetaCard(m, onAddProgress = null, onDelete = { vm.delete(m.id) })
-                }
-            }
-            if (state.items.isEmpty()) {
-                item {
-                    Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        Text("Nenhuma meta cadastrada.\nCrie sua primeira meta!", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (ativas.isNotEmpty()) {
+                        item { Text("Em andamento", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface) }
+                        items(ativas) { m ->
+                            MetaCard(m, onAddProgress = { progressTarget = m }, onDelete = { vm.delete(m.id) })
+                        }
+                    }
+                    if (concluidas.isNotEmpty()) {
+                        item { Text("Concluídas", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(top = 8.dp)) }
+                        items(concluidas) { m ->
+                            MetaCard(m, onAddProgress = null, onDelete = { vm.delete(m.id) })
+                        }
                     }
                 }
             }
@@ -171,7 +191,14 @@ fun CreateMetaDialog(onDismiss: () -> Unit, onSave: (String, String, Double, Str
                 DropdownField("Tipo", TIPOS_META_LABELS[tipo] ?: tipo, TIPOS_META_LABELS.values.toList()) { label ->
                     tipo = TIPOS_META_LABELS.entries.first { it.value == label }.key
                 }
-                OutlinedTextField(valorAlvo, { valorAlvo = it }, label = { Text("Valor alvo (R$)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(
+                    valorAlvo,
+                    { valorAlvo = it },
+                    label = { Text("Valor alvo (R$)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                )
                 OutlinedTextField(prazo, { prazo = it }, label = { Text("Prazo (AAAA-MM-DD, opcional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(descricao, { descricao = it }, label = { Text("Descrição (opcional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
@@ -203,7 +230,14 @@ fun AddProgressDialog(meta: Meta, onDismiss: () -> Unit, onSave: (Double) -> Uni
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Meta: ${meta.titulo}", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("Atual: ${formatBrl(meta.valorAtual)} / ${formatBrl(meta.valorAlvo)}", fontSize = 13.sp)
-                OutlinedTextField(valor, { valor = it }, label = { Text("Valor a adicionar (R$)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(
+                    valor,
+                    { valor = it },
+                    label = { Text("Valor a adicionar (R$)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                )
                 if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
             }
         },

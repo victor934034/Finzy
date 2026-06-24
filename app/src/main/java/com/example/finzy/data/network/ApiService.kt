@@ -75,6 +75,15 @@ interface FinzyApiService {
 
     @POST("ai/chat")
     suspend fun chat(@Body body: ChatRequest): ChatResponse
+
+    @GET("analytics/trends")
+    suspend fun getAnalyticsTrends(): AnalyticsTrendsResponse
+
+    @GET("analytics/categories")
+    suspend fun getAnalyticsCategories(): AnalyticsCategoriesResponse
+
+    @GET("analytics/forecast")
+    suspend fun getAnalyticsForecast(): AnalyticsForecast
 }
 
 interface SupabaseAuthService {

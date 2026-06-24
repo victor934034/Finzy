@@ -111,3 +111,19 @@ data class DataResponse<T>(val data: T)
 data class ListDataResponse<T>(val data: List<T>)
 data class MessageResponse(val message: String? = null, val error: String? = null)
 data class AddProgressRequest(val valor: Double)
+
+data class AnalyticsTrend(val mes: String, val receitas: Double, val despesas: Double)
+data class AnalyticsCategory(val name: String, val value: Double)
+data class AnalyticsMesAtual(
+    val receitas: Double,
+    val despesas: Double,
+    @SerializedName("despesasProjetadas") val despesasProjetadas: Double
+)
+data class AnalyticsForecast(
+    @SerializedName("mediaReceitas") val mediaReceitas: Double,
+    @SerializedName("mediaDespesas") val mediaDespesas: Double,
+    @SerializedName("saldoPrevisto") val saldoPrevisto: Double,
+    @SerializedName("mesAtual") val mesAtual: AnalyticsMesAtual
+)
+data class AnalyticsTrendsResponse(val data: List<AnalyticsTrend> = emptyList())
+data class AnalyticsCategoriesResponse(val categorias: List<AnalyticsCategory> = emptyList())

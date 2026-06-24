@@ -4,15 +4,19 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -31,11 +35,13 @@ val TIPOS_INVESTIMENTO = listOf("Ações","Renda Fixa","FIIs","Criptomoedas","Po
 
 private fun todayStr() = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InvestmentsScreen(vm: InvestmentsViewModel = viewModel(factory = InvestmentsViewModel.Factory)) {
     val state by vm.state.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
     var editTarget by remember { mutableStateOf<Investment?>(null) }
+    val pullRefreshState = rememberPullToRefreshState()
 
     val totalInvestido = state.items.sumOf { it.valorInvestido }
     val totalAtual = state.items.sumOf { it.valorAtual ?: it.valorInvestido }
@@ -49,51 +55,64 @@ fun InvestmentsScreen(vm: InvestmentsViewModel = viewModel(factory = Investments
             }
         }
     ) { padding ->
-        if (state.isLoading) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = FinzyGreen)
-            }
-            return@Scaffold
-        }
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        PullToRefreshBox(
+            isRefreshing = state.isLoading,
+            onRefresh = { vm.load() },
+            state = pullRefreshState,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
         ) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(12.dp)
+            if (state.items.isEmpty() && !state.isLoading) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        "Nenhum investimento cadastrado",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 14.sp
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Carteira Total", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(formatBrl(totalAtual), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = FinzyGreen)
-                        Spacer(Modifier.height(8.dp))
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Column {
-                                Text("Investido", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(formatBrl(totalInvestido), fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                            }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text("Rentabilidade", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(
-                                    "${if (rentabilidade >= 0) "+" else ""}${"%.2f".format(rentabilidade)}%",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (rentabilidade >= 0) FinzyReceita else FinzyDespesa
-                                )
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("Carteira Total", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(formatBrl(totalAtual), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = FinzyGreen)
+                                Spacer(Modifier.height(8.dp))
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Column {
+                                        Text("Investido", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(formatBrl(totalInvestido), fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                    }
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text("Rentabilidade", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(
+                                            "${if (rentabilidade >= 0) "+" else ""}${"%.2f".format(rentabilidade)}%",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (rentabilidade >= 0) FinzyReceita else FinzyDespesa
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
+                    items(state.items) { inv ->
+                        InvestmentItem(
+                            inv = inv,
+                            onEdit = { editTarget = inv; showDialog = true },
+                            onDelete = { vm.delete(inv.id) }
+                        )
+                    }
                 }
-            }
-            items(state.items) { inv ->
-                InvestmentItem(
-                    inv = inv,
-                    onEdit = { editTarget = inv; showDialog = true },
-                    onDelete = { vm.delete(inv.id) }
-                )
             }
         }
     }
@@ -163,8 +182,22 @@ fun InvestmentDialog(initial: Investment?, onDismiss: () -> Unit, onSave: (Strin
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(nome, { nome = it }, label = { Text("Nome") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 DropdownField("Tipo", tipo, TIPOS_INVESTIMENTO) { tipo = it }
-                OutlinedTextField(valorInv, { valorInv = it }, label = { Text("Valor investido (R$)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(valorAt, { valorAt = it }, label = { Text("Valor atual (R$, opcional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(
+                    valorInv,
+                    { valorInv = it },
+                    label = { Text("Valor investido (R$)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                )
+                OutlinedTextField(
+                    valorAt,
+                    { valorAt = it },
+                    label = { Text("Valor atual (R$, opcional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                )
                 OutlinedTextField(dataInicio, { dataInicio = it }, label = { Text("Data início (AAAA-MM-DD)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
             }

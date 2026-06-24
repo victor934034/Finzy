@@ -4,15 +4,19 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -30,11 +34,13 @@ val CATEGORIAS_RECEITA = listOf("Salário","Freelance","Investimentos","Vendas",
 
 private fun todayStr() = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionsScreen(vm: TransactionsViewModel = viewModel(factory = TransactionsViewModel.Factory)) {
     val state by vm.state.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
     var editTarget by remember { mutableStateOf<Transaction?>(null) }
+    val pullRefreshState = rememberPullToRefreshState()
 
     val filtered = if (state.filterTipo == "todos") state.items
     else state.items.filter { it.tipo == state.filterTipo }
@@ -47,35 +53,48 @@ fun TransactionsScreen(vm: TransactionsViewModel = viewModel(factory = Transacti
             }
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("todos" to "Todos", "receita" to "Receitas", "despesa" to "Despesas").forEach { (key, label) ->
-                    FilterChip(
-                        selected = state.filterTipo == key,
-                        onClick = { vm.setFilter(key) },
-                        label = { Text(label, fontSize = 12.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = FinzyGreen.copy(alpha = 0.2f),
-                            selectedLabelColor = FinzyGreen
+        PullToRefreshBox(
+            isRefreshing = state.isLoading,
+            onRefresh = { vm.load() },
+            state = pullRefreshState,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("todos" to "Todos", "receita" to "Receitas", "despesa" to "Despesas").forEach { (key, label) ->
+                        FilterChip(
+                            selected = state.filterTipo == key,
+                            onClick = { vm.setFilter(key) },
+                            label = { Text(label, fontSize = 12.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = FinzyGreen.copy(alpha = 0.2f),
+                                selectedLabelColor = FinzyGreen
+                            )
                         )
-                    )
+                    }
                 }
-            }
-            if (state.isLoading) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = FinzyGreen)
-                }
-            } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(filtered) { t ->
-                        TransactionItem(
-                            t = t,
-                            onEdit = { editTarget = t; showDialog = true },
-                            onDelete = { vm.delete(t.id) }
+                if (filtered.isEmpty() && !state.isLoading) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            "Nenhuma transação encontrada",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 14.sp
                         )
+                    }
+                } else {
+                    LazyColumn(
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(filtered) { t ->
+                            TransactionItem(
+                                t = t,
+                                onEdit = { editTarget = t; showDialog = true },
+                                onDelete = { vm.delete(t.id) }
+                            )
+                        }
                     }
                 }
             }
@@ -161,7 +180,14 @@ fun TransactionDialog(initial: Transaction?, onDismiss: () -> Unit, onSave: (Str
                         )
                     }
                 }
-                OutlinedTextField(valor, { valor = it }, label = { Text("Valor (R$)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(
+                    valor,
+                    { valor = it },
+                    label = { Text("Valor (R$)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                )
                 DropdownField("Categoria", categoria, if (tipo == "receita") CATEGORIAS_RECEITA else CATEGORIAS_DESPESA) { categoria = it }
                 OutlinedTextField(descricao, { descricao = it }, label = { Text("Descrição") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(data, { data = it }, label = { Text("Data (AAAA-MM-DD)") }, singleLine = true, modifier = Modifier.fillMaxWidth())

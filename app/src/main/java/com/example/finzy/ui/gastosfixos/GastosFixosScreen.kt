@@ -4,15 +4,19 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -28,11 +32,13 @@ val CATEGORIAS_FIXO = listOf("Moradia","Alimentação","Transporte","Saúde","Ed
 val FREQUENCIAS = listOf("semanal","quinzenal","mensal","trimestral","semestral","anual")
 val FREQ_LABELS = mapOf("semanal" to "Semanal","quinzenal" to "Quinzenal","mensal" to "Mensal","trimestral" to "Trimestral","semestral" to "Semestral","anual" to "Anual")
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GastosFixosScreen(vm: GastosFixosViewModel = viewModel(factory = GastosFixosViewModel.Factory)) {
     val state by vm.state.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
     var editTarget by remember { mutableStateOf<GastoFixo?>(null) }
+    val pullRefreshState = rememberPullToRefreshState()
 
     val totalMensal = state.items.filter { it.ativo }.sumOf { gasto ->
         when (gasto.frequencia) {
@@ -54,37 +60,50 @@ fun GastosFixosScreen(vm: GastosFixosViewModel = viewModel(factory = GastosFixos
             }
         }
     ) { padding ->
-        if (state.isLoading) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = FinzyGreen)
-            }
-            return@Scaffold
-        }
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        PullToRefreshBox(
+            isRefreshing = state.isLoading,
+            onRefresh = { vm.load() },
+            state = pullRefreshState,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
         ) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(12.dp)
+            if (state.items.isEmpty() && !state.isLoading) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        "Nenhum gasto fixo cadastrado",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 14.sp
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Custo mensal estimado", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(formatBrl(totalMensal), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = FinzyDespesa)
-                        Text("${state.items.count { it.ativo }} gastos ativos de ${state.items.size}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("Custo mensal estimado", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(formatBrl(totalMensal), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = FinzyDespesa)
+                                Text("${state.items.count { it.ativo }} gastos ativos de ${state.items.size}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                    items(state.items) { g ->
+                        GastoFixoItem(
+                            g = g,
+                            onEdit = { editTarget = g; showDialog = true },
+                            onDelete = { vm.delete(g.id) },
+                            onToggle = { vm.update(g.id, g.descricao, g.valor, g.categoria, g.diaVencimento, g.frequencia, !g.ativo) {} }
+                        )
                     }
                 }
-            }
-            items(state.items) { g ->
-                GastoFixoItem(
-                    g = g,
-                    onEdit = { editTarget = g; showDialog = true },
-                    onDelete = { vm.delete(g.id) },
-                    onToggle = { vm.update(g.id, g.descricao, g.valor, g.categoria, g.diaVencimento, g.frequencia, !g.ativo) {} }
-                )
             }
         }
     }
@@ -147,9 +166,23 @@ fun GastoFixoDialog(initial: GastoFixo?, onDismiss: () -> Unit, onSave: (String,
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(descricao, { descricao = it }, label = { Text("Descrição") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(valor, { valor = it }, label = { Text("Valor (R$)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(
+                    valor,
+                    { valor = it },
+                    label = { Text("Valor (R$)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                )
                 DropdownField("Categoria", categoria, CATEGORIAS_FIXO) { categoria = it }
-                OutlinedTextField(dia, { dia = it }, label = { Text("Dia de vencimento (1-31)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(
+                    dia,
+                    { dia = it },
+                    label = { Text("Dia de vencimento (1-31)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
                 DropdownField("Frequência", FREQ_LABELS[frequencia] ?: frequencia, FREQ_LABELS.values.toList()) { label ->
                     frequencia = FREQ_LABELS.entries.first { it.value == label }.key
                 }

@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.finzy.FinzyApplication
 import com.example.finzy.data.model.*
+import com.example.finzy.data.preferences.UserPreferences
 import com.example.finzy.data.repository.DashboardRepository
 import com.example.finzy.data.repository.NotificacaoRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,7 +25,8 @@ data class DashboardUiState(
 
 class DashboardViewModel(
     private val dashRepo: DashboardRepository,
-    private val notifRepo: NotificacaoRepository
+    private val notifRepo: NotificacaoRepository,
+    private val prefs: UserPreferences
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DashboardUiState())
@@ -39,12 +41,14 @@ class DashboardViewModel(
             _state.value = _state.value.copy(isLoading = true)
             val summaryResult = dashRepo.getSummary()
             val notifResult = notifRepo.getAll()
+            val nome = prefs.getUserNome() ?: ""
             _state.value = _state.value.copy(
                 isLoading = false,
                 summary = summaryResult.getOrNull(),
                 error = summaryResult.exceptionOrNull()?.message,
                 notificacoes = notifResult.getOrNull()?.data ?: emptyList(),
-                naoLidas = notifResult.getOrNull()?.naoLidas ?: 0
+                naoLidas = notifResult.getOrNull()?.naoLidas ?: 0,
+                userName = nome
             )
         }
     }
@@ -86,7 +90,7 @@ class DashboardViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as FinzyApplication
-                DashboardViewModel(app.container.dashboardRepository, app.container.notificacaoRepository)
+                DashboardViewModel(app.container.dashboardRepository, app.container.notificacaoRepository, app.container.userPreferences)
             }
         }
     }

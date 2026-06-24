@@ -19,6 +19,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.finzy.data.network.ApiClient
+import com.example.finzy.ui.analytics.AnalyticsScreen
 import com.example.finzy.ui.auth.AuthScreen
 import com.example.finzy.ui.chat.ChatScreen
 import com.example.finzy.ui.components.FinzyBottomNav
@@ -31,7 +32,7 @@ import com.example.finzy.ui.theme.FinzyTheme
 import com.example.finzy.ui.transactions.TransactionsScreen
 import kotlinx.coroutines.launch
 
-val BOTTOM_NAV_ROUTES = setOf("dashboard", "transactions", "gastos-fixos", "metas", "chat")
+val BOTTOM_NAV_ROUTES = setOf("dashboard", "transactions", "gastos-fixos", "analytics", "metas", "chat")
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -111,6 +112,7 @@ fun FinzyApp(application: FinzyApplication) {
             }
             composable("transactions") { TransactionsScreen() }
             composable("gastos-fixos") { GastosFixosScreen() }
+            composable("analytics") { AnalyticsScreen() }
             composable("metas") { MetasScreen() }
             composable("investments") { InvestmentsScreen() }
             composable("chat") { ChatScreen() }

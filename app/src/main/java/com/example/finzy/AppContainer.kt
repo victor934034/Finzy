@@ -14,4 +14,5 @@ class AppContainer(context: Context) {
     val metaRepository = MetaRepository()
     val notificacaoRepository = NotificacaoRepository()
     val chatRepository = ChatRepository()
+    val analyticsRepository = AnalyticsRepository()
 }

@@ -206,3 +206,15 @@ class ChatRepository {
         ApiClient.service.chat(ChatRequest(message))
     }
 }
+
+class AnalyticsRepository {
+    suspend fun getTrends(): Result<List<AnalyticsTrend>> = runCatching {
+        ApiClient.service.getAnalyticsTrends().data
+    }
+    suspend fun getCategories(): Result<List<AnalyticsCategory>> = runCatching {
+        ApiClient.service.getAnalyticsCategories().categorias
+    }
+    suspend fun getForecast(): Result<AnalyticsForecast> = runCatching {
+        ApiClient.service.getAnalyticsForecast()
+    }
+}
