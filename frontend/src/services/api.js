@@ -45,13 +45,20 @@ export const businessApi = {
 };
 
 export const aiApi = {
-  chat: (messages) => api.post('/ai/chat', { messages }),
+  chat: (message) => api.post('/ai/chat', { message }),
+  history: () => api.get('/ai/chat/history'),
   categorize: (descricao) => api.post('/ai/categorize', { descricao }),
   dashboardInsight: () => api.get('/ai/insight/dashboard'),
   investmentsInsight: () => api.get('/ai/insight/investments'),
   businessInsight: (params) => api.get('/ai/insight/business', { params }),
   predictCashFlow: () => api.get('/ai/cashflow/predict'),
   providers: () => api.get('/ai/providers'),
+};
+
+export const analyticsApi = {
+  trends: () => api.get('/analytics/trends'),
+  categories: () => api.get('/analytics/categories'),
+  forecast: () => api.get('/analytics/forecast'),
 };
 
 export const dashboardApi = {

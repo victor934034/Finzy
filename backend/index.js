@@ -16,6 +16,7 @@ import integrationsRouter from './routes/integrations.js';
 import gastosFixosRouter from './routes/gastosFixos.js';
 import metasRouter from './routes/metas.js';
 import notificacoesRouter from './routes/notificacoes.js';
+import analyticsRouter from './routes/analytics.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -51,6 +52,7 @@ app.use('/api/integrations', integrationsRouter);
 app.use('/api/gastos-fixos', gastosFixosRouter);
 app.use('/api/metas', metasRouter);
 app.use('/api/notificacoes', notificacoesRouter);
+app.use('/api/analytics', analyticsRouter);
 
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 

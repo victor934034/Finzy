@@ -12,10 +12,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
+private val GREETING = ChatMessage("assistant", "Olá! Sou o Finzy IA, seu assistente financeiro pessoal. Como posso ajudar você hoje?")
+
 data class ChatUiState(
-    val messages: List<ChatMessage> = listOf(
-        ChatMessage("assistant", "Olá! Sou o Finzy IA, seu assistente financeiro pessoal. Como posso ajudar você hoje?")
-    ),
+    val messages: List<ChatMessage> = listOf(GREETING),
     val isTyping: Boolean = false,
     val error: String? = null
 )
@@ -25,18 +25,34 @@ class ChatViewModel(private val repo: ChatRepository) : ViewModel() {
     private val _state = MutableStateFlow(ChatUiState())
     val state: StateFlow<ChatUiState> = _state
 
+    init {
+        loadHistory()
+    }
+
+    private fun loadHistory() {
+        viewModelScope.launch {
+            repo.getHistory().onSuccess { history ->
+                if (history.isNotEmpty()) {
+                    _state.value = _state.value.copy(messages = listOf(GREETING) + history)
+                }
+            }
+        }
+    }
+
     fun sendMessage(text: String) {
         if (text.isBlank()) return
         val userMsg = ChatMessage("user", text.trim())
-        val updatedMessages = _state.value.messages + userMsg
-        _state.value = _state.value.copy(messages = updatedMessages, isTyping = true, error = null)
+        _state.value = _state.value.copy(
+            messages = _state.value.messages + userMsg,
+            isTyping = true,
+            error = null
+        )
 
         viewModelScope.launch {
-            repo.chat(updatedMessages).fold(
+            repo.chat(text.trim()).fold(
                 onSuccess = { response ->
-                    val assistantMsg = ChatMessage("assistant", response.response)
                     _state.value = _state.value.copy(
-                        messages = _state.value.messages + assistantMsg,
+                        messages = _state.value.messages + ChatMessage("assistant", response.response),
                         isTyping = false
                     )
                 },

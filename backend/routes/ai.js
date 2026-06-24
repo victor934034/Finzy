@@ -8,6 +8,7 @@ router.get('/providers', ctrl.getProviders);
 
 router.use(authMiddleware);
 
+router.get('/chat/history', ctrl.getChatHistory);
 router.post('/chat', ctrl.chat);
 router.post('/categorize', ctrl.categorize);
 router.get('/insight/dashboard', ctrl.getDashboardInsight);

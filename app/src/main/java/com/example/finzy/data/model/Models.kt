@@ -103,7 +103,8 @@ data class NotificacoesResponse(
 )
 
 data class ChatMessage(val role: String, val content: String)
-data class ChatRequest(val messages: List<ChatMessage>)
+data class ChatRequest(val message: String)
+data class ChatHistoryResponse(val messages: List<ChatMessage> = emptyList())
 data class ChatResponse(val response: String, val provider: String? = null)
 
 data class DataResponse<T>(val data: T)

@@ -7,11 +7,26 @@ export function getProviders(req, res) {
   res.json(ai.getProvidersStatus());
 }
 
+export async function getChatHistory(req, res) {
+  try {
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select('role, content, created_at')
+      .eq('user_id', req.user.id)
+      .order('created_at', { ascending: true })
+      .limit(100);
+    if (error) throw error;
+    res.json({ messages: data || [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
 export async function chat(req, res) {
   try {
-    const { messages } = req.body;
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return res.status(400).json({ error: 'Mensagens inválidas.' });
+    const { message } = req.body;
+    if (!message || typeof message !== 'string' || !message.trim()) {
+      return res.status(400).json({ error: 'Mensagem inválida.' });
     }
 
     const now = new Date();
@@ -20,13 +35,15 @@ export async function chat(req, res) {
 
     checkAndCreateAlerts(req.user.id).catch(() => {});
 
-    const [transResult, invResult, bankAccounts, gastosResult, metasResult] = await Promise.all([
+    const [transResult, invResult, bankAccounts, gastosResult, metasResult, historyResult] = await Promise.all([
       supabase.from('transactions').select('*').eq('user_id', req.user.id)
         .gte('data', start).lte('data', end).order('data', { ascending: false }),
       supabase.from('investments').select('*').eq('user_id', req.user.id),
       getAccountBalances(req.user.id).catch(() => []),
       supabase.from('gastos_fixos').select('descricao, valor, categoria, dia_vencimento, frequencia').eq('user_id', req.user.id).eq('ativo', true),
       supabase.from('metas').select('titulo, tipo, valor_alvo, valor_atual, prazo, concluida').eq('user_id', req.user.id).eq('concluida', false),
+      supabase.from('chat_messages').select('role, content').eq('user_id', req.user.id)
+        .order('created_at', { ascending: true }).limit(30),
     ]);
 
     const transactions = transResult.data || [];
@@ -49,10 +66,13 @@ export async function chat(req, res) {
       metas: metasResult.data || [],
     };
 
+    const history = historyResult.data || [];
+    const messages = [...history, { role: 'user', content: message.trim() }];
+
     const { text: response, provider, actions = [] } = await ai.chatWithAI(messages, userContext, req.user.id);
 
     await supabase.from('chat_messages').insert([
-      { user_id: req.user.id, role: 'user', content: messages[messages.length - 1].content },
+      { user_id: req.user.id, role: 'user', content: message.trim() },
       { user_id: req.user.id, role: 'assistant', content: response },
     ]);
 

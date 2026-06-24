@@ -70,6 +70,9 @@ interface FinzyApiService {
     @DELETE("notificacoes/{id}")
     suspend fun deleteNotificacao(@Path("id") id: String): MessageResponse
 
+    @GET("ai/chat/history")
+    suspend fun getChatHistory(): ChatHistoryResponse
+
     @POST("ai/chat")
     suspend fun chat(@Body body: ChatRequest): ChatResponse
 }

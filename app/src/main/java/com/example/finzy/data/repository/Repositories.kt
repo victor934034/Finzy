@@ -4,6 +4,17 @@ import com.example.finzy.data.model.*
 import com.example.finzy.data.network.ApiClient
 import com.example.finzy.data.network.NetworkModule
 import com.example.finzy.data.preferences.UserPreferences
+import retrofit2.HttpException
+
+private fun parseSupabaseError(body: String?): String? {
+    if (body.isNullOrBlank()) return null
+    return try {
+        val json = com.google.gson.JsonParser.parseString(body).asJsonObject
+        listOf("msg", "message", "error_description", "error").firstNotNullOfOrNull { key ->
+            json.get(key)?.takeIf { !it.isJsonNull }?.asString?.takeIf { it.isNotBlank() }
+        }
+    } catch (_: Exception) { null }
+}
 
 class AuthRepository(
     private val prefs: UserPreferences
@@ -11,8 +22,20 @@ class AuthRepository(
     private val authService = NetworkModule.supabaseAuthService
 
     suspend fun login(email: String, password: String): Result<SupabaseSession> = runCatching {
-        val session = authService.login(grantType = "password", body = LoginRequest(email, password))
-        requireNotNull(session.accessToken) { "Token não recebido. Verifique suas credenciais." }
+        val session = try {
+            authService.login(grantType = "password", body = LoginRequest(email, password))
+        } catch (e: HttpException) {
+            val body = e.response()?.errorBody()?.string()
+            val msg = parseSupabaseError(body)
+                ?: when (e.code()) {
+                    400 -> "Email ou senha incorretos. Verifique suas credenciais."
+                    422 -> "Formato de email inválido."
+                    429 -> "Muitas tentativas. Aguarde alguns minutos."
+                    else -> "Erro de autenticação (${e.code()})"
+                }
+            throw Exception(msg)
+        }
+        requireNotNull(session.accessToken) { "Confirmação de email necessária. Verifique sua caixa de entrada." }
         val nome = session.user.userMetadata?.get("nome")?.toString() ?: ""
         prefs.saveSession(
             accessToken = session.accessToken,
@@ -26,9 +49,18 @@ class AuthRepository(
     }
 
     suspend fun signup(email: String, password: String, nome: String): Result<SupabaseSession> = runCatching {
-        val session = authService.signup(
-            SignUpRequest(email, password, mapOf("nome" to nome))
-        )
+        val session = try {
+            authService.signup(SignUpRequest(email, password, mapOf("nome" to nome)))
+        } catch (e: HttpException) {
+            val body = e.response()?.errorBody()?.string()
+            val msg = parseSupabaseError(body)
+                ?: when (e.code()) {
+                    422 -> "Email já cadastrado ou inválido."
+                    429 -> "Muitas tentativas. Aguarde alguns minutos."
+                    else -> "Erro ao criar conta (${e.code()})"
+                }
+            throw Exception(msg)
+        }
         requireNotNull(session.accessToken) { "Confirmação de email necessária. Verifique sua caixa de entrada." }
         prefs.saveSession(
             accessToken = session.accessToken,
@@ -166,7 +198,11 @@ class NotificacaoRepository {
 }
 
 class ChatRepository {
-    suspend fun chat(messages: List<ChatMessage>): Result<ChatResponse> = runCatching {
-        ApiClient.service.chat(ChatRequest(messages))
+    suspend fun getHistory(): Result<List<ChatMessage>> = runCatching {
+        ApiClient.service.getChatHistory().messages
+    }
+
+    suspend fun chat(message: String): Result<ChatResponse> = runCatching {
+        ApiClient.service.chat(ChatRequest(message))
     }
 }

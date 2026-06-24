@@ -75,15 +75,23 @@ function MessageBubble({ msg }) {
   );
 }
 
+const GREETING = 'Olá! Sou a FinIA, sua assistente financeira com IA. Tenho acesso aos seus dados financeiros e posso responder perguntas sobre seus gastos, receitas, investimentos e muito mais. Como posso ajudar?';
+
 export default function ChatPage() {
-  const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'Olá! Sou a FinIA, sua assistente financeira com IA. Tenho acesso aos seus dados financeiros e posso responder perguntas sobre seus gastos, receitas, investimentos e muito mais. Como posso ajudar?' },
-  ]);
+  const [messages, setMessages] = useState([{ role: 'assistant', content: GREETING }]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const { show } = useToast();
+
+  useEffect(() => {
+    aiApi.history().then(res => {
+      if (res.messages?.length > 0) {
+        setMessages([{ role: 'assistant', content: GREETING }, ...res.messages]);
+      }
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -93,15 +101,12 @@ export default function ChatPage() {
     const content = text || input.trim();
     if (!content || loading) return;
 
-    const userMsg = { role: 'user', content };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
+    setMessages(prev => [...prev, { role: 'user', content }]);
     setInput('');
     setLoading(true);
 
     try {
-      const messagesToSend = newMessages.filter(m => m.role !== 'assistant' || newMessages.indexOf(m) > 0);
-      const res = await aiApi.chat(messagesToSend);
+      const res = await aiApi.chat(content);
       setMessages(prev => [...prev, { role: 'assistant', content: res.response, actions: res.actions || [] }]);
     } catch (err) {
       const msg = err.message?.includes('chave de API') || err.message?.includes('API key')
@@ -115,7 +120,7 @@ export default function ChatPage() {
     }
   }
 
-  function clearChat() {
+  async function clearChat() {
     setMessages([{ role: 'assistant', content: 'Conversa reiniciada. Como posso ajudar?' }]);
   }
 

@@ -34,3 +34,18 @@ desktop.ini
 # PWA gerado
 frontend/public/sw.js
 frontend/public/workbox-*.js
+
+# Android
+.gradle/
+.gradle2/
+local.properties
+*.iml
+app/release/
+app/build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Arquivos auxiliares não-código
+APRESENTACAO_CANVA.md
+.gitignor

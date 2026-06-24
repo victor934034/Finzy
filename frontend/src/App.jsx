@@ -10,6 +10,7 @@ import ChatPage from './pages/ChatPage.jsx';
 import IntegrationsPage from './pages/IntegrationsPage.jsx';
 import GastosFixosPage from './pages/GastosFixosPage.jsx';
 import MetasPage from './pages/MetasPage.jsx';
+import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import Layout from './components/layout/Layout.jsx';
 
 function PrivateRoute({ children }) {
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="integracoes" element={<IntegrationsPage />} />
           <Route path="gastos-fixos" element={<GastosFixosPage />} />
           <Route path="metas" element={<MetasPage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

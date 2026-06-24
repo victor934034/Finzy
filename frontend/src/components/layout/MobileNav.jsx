@@ -1,10 +1,10 @@
 ﻿import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ArrowLeftRight, CalendarClock, Target, MessageCircle } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, BarChart2, Target, MessageCircle } from 'lucide-react';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Início' },
   { to: '/transacoes', icon: ArrowLeftRight, label: 'Gastos' },
-  { to: '/gastos-fixos', icon: CalendarClock, label: 'Fixos' },
+  { to: '/analytics', icon: BarChart2, label: 'Analytics' },
   { to: '/metas', icon: Target, label: 'Metas' },
   { to: '/chat', icon: MessageCircle, label: 'Chat IA' },
 ];
