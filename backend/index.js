@@ -83,4 +83,4 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.message || 'Erro interno do servidor' });
 });
 
-app.listen(PORT, () => console.log(`🚀 FinanceIA rodando na porta ${PORT} ${hasStatic ? '(frontend + API)' : '(apenas API)'}`));
+app.listen(PORT, () => console.log(`🚀 FinzyAI rodando na porta ${PORT} ${hasStatic ? '(frontend + API)' : '(apenas API)'}`));

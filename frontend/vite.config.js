@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/icon-192.png', 'icons/icon-512.png'],
       manifest: {
-        name: 'FinanceIA - Inteligência Financeira',
-        short_name: 'FinanceIA',
+        name: 'FinzyAI - Inteligência Financeira',
+        short_name: 'FinzyAI',
         description: 'Gerencie suas finanças com inteligência artificial',
         theme_color: '#00C853',
         background_color: '#0F172A',

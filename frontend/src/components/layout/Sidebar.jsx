@@ -24,7 +24,9 @@ export default function Sidebar() {
           <Sparkles size={20} className="text-primary" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-white">FinanceIA</h1>
+          <h1 className="text-lg font-bold leading-none">
+            <span className="text-primary">Finzy</span><span className="text-white">AI</span>
+          </h1>
           <p className="text-xs text-gray-500">Inteligência Financeira</p>
         </div>
       </div>

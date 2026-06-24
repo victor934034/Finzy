@@ -1,7 +1,7 @@
 {
-  "name": "finance-ia-backend",
+  "name": "finzyai-backend",
   "version": "1.0.0",
-  "description": "Backend do FinanceIA - API Node.js + Express",
+  "description": "Backend do FinzyAI - API Node.js + Express",
   "main": "index.js",
   "type": "module",
   "scripts": {

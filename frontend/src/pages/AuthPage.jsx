@@ -50,7 +50,9 @@ export default function AuthPage() {
           <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center mx-auto mb-4 glow">
             <Sparkles size={32} className="text-primary" />
           </div>
-          <h1 className="text-3xl font-bold text-white">FinanceIA</h1>
+          <h1 className="text-4xl font-bold leading-none">
+            <span className="text-primary">Finzy</span><span className="text-white">AI</span>
+          </h1>
           <p className="text-gray-400 mt-2">Inteligência financeira ao seu alcance</p>
         </div>
 
